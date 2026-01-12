@@ -101,43 +101,60 @@ func (b *blueprint) TransactionReporting(ctx context.Context, request *RequestRe
 			result.Amount = d.Amount
 			result.DestinationId = d.DestinationId
 			result.CreatedAt = d.CreatedAt
-			result.BodyReq = d.BodyReq
+			if d.BodyReq == nil {
+				result.BodyReq = "N/A"
+			}
+			if *d.BodyReq == "" || *d.BodyReq == "null" {
+				result.BodyReq = "N/A"
+			} else {
+				result.BodyReq = *d.BodyReq
+			}
 			var ruleData []rule
 			err := json.Unmarshal([]byte(d.Rules), &ruleData)
-			if err != nil || len(ruleData) == 0 {
-				result.RuleName = ""
-				result.RuleAmount = ""
-				result.RuleInterval = ""
-				result.RuleTransactionType = ""
-				result.RuleAction = ""
+			if err != nil {
+				result.RuleName = "N/A"
+				result.RuleAmount = "N/A"
+				result.RuleInterval = "N/A"
+				result.RuleTransactionType = "N/A"
+				result.RuleAction = "N/A"
 			} else {
 				var t transactionType
 				var a actions
 				var i interval
 
-				errT := json.Unmarshal([]byte(ruleData[0].TransactionType), &t)
-				if errT != nil {
-					result.RuleTransactionType = ruleData[0].TransactionType
-				} else {
-					result.RuleTransactionType = fmt.Sprintf("%s %s", t.Value, t.Type)
+				if ruleData == nil {
+					result.RuleName = "N/A"
+					result.RuleAmount = "N/A"
+					result.RuleInterval = "N/A"
+					result.RuleTransactionType = "N/A"
+					result.RuleAction = "N/A"
 				}
 
-				errI := json.Unmarshal([]byte(ruleData[0].Interval), &i)
-				if errI != nil {
-					result.RuleInterval = ruleData[0].Interval
-				} else {
-					result.RuleInterval = fmt.Sprintf("%d %s", i.Value, i.Type)
-				}
+				if len(ruleData) > 0 {
+					errT := json.Unmarshal([]byte(ruleData[0].TransactionType), &t)
+					if errT != nil {
+						result.RuleTransactionType = "N/A"
+					} else {
+						result.RuleTransactionType = t.Type
+					}
 
-				errA := json.Unmarshal([]byte(ruleData[0].Actions), &a)
-				if errA != nil {
-					result.RuleAction = ruleData[0].Actions
-				} else {
-					result.RuleAction = fmt.Sprintf("reported: %v, blocked: %v", a.IsReport, a.IsBlock)
-				}
+					errI := json.Unmarshal([]byte(ruleData[0].Interval), &i)
+					if errI != nil {
+						result.RuleInterval = "N/A"
+					} else {
+						result.RuleInterval = i.Type
+					}
 
-				result.RuleAmount = strconv.Itoa(ruleData[0].Amount)
-				result.RuleName = ruleData[0].RuleName
+					errA := json.Unmarshal([]byte(ruleData[0].Actions), &a)
+					if errA != nil {
+						result.RuleAction = "N/A"
+					} else {
+						result.RuleAction = fmt.Sprintf("reported: %v, blocked: %v", a.IsReport, a.IsBlock)
+					}
+
+					result.RuleAmount = strconv.Itoa(ruleData[0].Amount)
+					result.RuleName = ruleData[0].RuleName
+				}
 			}
 			dataResult = append(dataResult, result)
 		}

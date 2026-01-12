@@ -9,18 +9,18 @@ import (
 /* [CODE GENERATOR] INITIALIZE_CODE */
 
 type EntityTransaction struct {
-	Id              string `gorm:"column:id"`
-	TransactionId   string `gorm:"column:transaction_id"`
-	TransactionType string `gorm:"column:transaction_type"`
-	Rules           string `gorm:"column:rules"`
-	Title           string `gorm:"column:title"`
-	Channel         string `gorm:"column:channel"`
-	BodyReq         string `gorm:"column:body_req"`
-	FlagId          string `gorm:"column:flag_id"`
-	CreatedAt       string `gorm:"column:created_at"`
-	UserId          string `gorm:"column:user_id"`
-	Amount          string `gorm:"column:amount"`
-	DestinationId   string `gorm:"column:destination_id"`
+	Id              string  `gorm:"column:id"`
+	TransactionId   string  `gorm:"column:transaction_id"`
+	TransactionType string  `gorm:"column:transaction_type"`
+	Rules           string  `gorm:"column:rules"`
+	Title           string  `gorm:"column:title"`
+	Channel         string  `gorm:"column:channel"`
+	BodyReq         *string `gorm:"column:body_req"`
+	FlagId          string  `gorm:"column:flag_id"`
+	CreatedAt       string  `gorm:"column:created_at"`
+	UserId          string  `gorm:"column:user_id"`
+	Amount          string  `gorm:"column:amount"`
+	DestinationId   string  `gorm:"column:destination_id"`
 }
 
 func (ent *EntityTransaction) TableName() string {

@@ -3,6 +3,7 @@ package uscBlacklistManagement
 import (
 	"context"
 	"fmt"
+
 	"gitlab.com/fds22/detection-sys/pkg/basicObject"
 	"gitlab.com/fds22/detection-sys/pkg/defaultHeaders"
 	"gitlab.com/fds22/detection-sys/pkg/errorWrapper"
@@ -84,7 +85,7 @@ func (b *blueprint) TransactionHistories(ctx context.Context, request *RequestRe
 				Rules:             d.Rules,
 				Title:             d.Title,
 				Channel:           d.Channel,
-				BodyReq:           d.BodyReq,
+				BodyReq:           *d.BodyReq,
 				FlagId:            d.FlagId,
 				Flag:              flag,
 				CreatedAt:         d.CreatedAt,
