@@ -2,8 +2,10 @@ package uscAuthentication
 
 import (
 	"context"
+
 	"gitlab.com/fds22/detection-sys/pkg/environments"
 	"gitlab.com/fds22/detection-sys/pkg/otp"
+	"gitlab.com/fds22/detection-sys/src/externals/extSSOLoginMSF"
 	"gitlab.com/fds22/detection-sys/src/repositories/rprAuthentication"
 	"go.uber.org/zap"
 )
@@ -16,6 +18,7 @@ type (
 
 		UserRegister(ctx context.Context, request *RequestUserRegister) (*ResponseUserRegister, error)
 		UserLogin(ctx context.Context, request *RequestLoginRegister) (*ResponseLoginRegister, error)
+		UserLoginSSO(ctx context.Context, request *RequestLoginRegisterSSO) (*ResponseLoginRegisterSSO, error)
 		UserBanned(ctx context.Context, request *RequestBannedUser) (*ResponseBannedUser, error)
 		GetAvailableRoles(ctx context.Context, request *RequestGetRoles) (*ResponseGetRoles, error)
 		GetRegisteredUsers(ctx context.Context, request *RequestRegisteredUsers) (*ResponseRegisteredUsers, error)
@@ -30,6 +33,7 @@ type (
 		rprAuthentication rprAuthentication.Blueprint
 		env               *environments.Envs
 		log               *zap.SugaredLogger // log logging instance
+		extSSOLoginMSF    extSSOLoginMSF.IProxyAdapterClient
 		otpSender         otp.OTP
 	}
 )
@@ -39,6 +43,7 @@ type (
 func NewBlueprint(
 	/* [CODE GENERATOR] FUNC_PARAM */
 	rprAuthentication rprAuthentication.Blueprint,
+	extSSOLoginMSF extSSOLoginMSF.IProxyAdapterClient,
 	env *environments.Envs,
 	log *zap.SugaredLogger,
 ) Blueprint {
@@ -50,6 +55,7 @@ func NewBlueprint(
 	bp := new(blueprint)
 	/* [CODE GENERATOR] ATTR_ASSIGN */
 	bp.rprAuthentication = rprAuthentication
+	bp.extSSOLoginMSF = extSSOLoginMSF
 	bp.env = env
 	bp.log = log
 	bp.otpSender = otp.NewOTP(otp.Config{

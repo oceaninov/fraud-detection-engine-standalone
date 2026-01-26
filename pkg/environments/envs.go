@@ -1,9 +1,10 @@
 package environments
 
 import (
+	"os"
+
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
-	"os"
 )
 
 type ApplicationEnvs struct {
@@ -58,6 +59,11 @@ type OTP struct {
 	SMTPSender   string `envconfig:"SMTP_SENDER"`
 }
 
+type Externals struct {
+	// Proxy Adaptor
+	ProxyAdapterHost string `envconfig:"PROXY_ADAPTER_HOST"`
+}
+
 type Envs struct {
 	SetMode string `envconfig:"SET_MODE"`
 	JwtEnvs
@@ -66,6 +72,7 @@ type Envs struct {
 	DatabaseEnvs
 	SettingsEnv
 	OTP
+	Externals
 }
 
 func NewEnvs() (*Envs, error) {

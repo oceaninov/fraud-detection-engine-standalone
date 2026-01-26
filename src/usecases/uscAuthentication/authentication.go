@@ -3,6 +3,9 @@ package uscAuthentication
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
+
 	guuid "github.com/google/uuid"
 	"github.com/hashicorp/go-uuid"
 	"gitlab.com/fds22/detection-sys/pkg/basicObject"
@@ -12,8 +15,6 @@ import (
 	"gitlab.com/fds22/detection-sys/pkg/humanTime"
 	"gitlab.com/fds22/detection-sys/src/repositories/rprAuthentication"
 	"golang.org/x/crypto/bcrypt"
-	"strconv"
-	"time"
 )
 
 type (
@@ -51,6 +52,29 @@ type (
 	RequestLoginRegister struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+	}
+)
+
+type (
+	ResponseLoginRegisterSSO struct {
+		ResponseCode    string `json:"responseCode"`
+		ResponseMessage string `json:"responseMessage"`
+		AccessToken     string `json:"accessToken"`
+		RefreshToken    string `json:"refreshToken"`
+		User            struct {
+			Id        string `json:"id"`
+			Email     string `json:"email"`
+			RoleId    string `json:"roleId"`
+			AvatarUrl string `json:"avatarUrl"`
+			FullName  string `json:"fullName"`
+			Gender    string `json:"gender"`
+			CreatedAt string `json:"createdAt"`
+			UpdatedAt string `json:"updatedAt"`
+		} `json:"user"`
+	}
+
+	RequestLoginRegisterSSO struct {
+		Code string `json:"code"`
 	}
 )
 
@@ -652,5 +676,102 @@ func (b *blueprint) UserLogin(ctx context.Context, request *RequestLoginRegister
 	response.User.CreatedAt = user.CreatedAt
 	response.User.UpdatedAt = user.UpdatedAt
 
+	return response, nil
+}
+
+func (b *blueprint) UserLoginSSO(ctx context.Context, request *RequestLoginRegisterSSO) (*ResponseLoginRegisterSSO, error) {
+	// constructing standard module name with request id as its prefix
+	const fCode = "AUT003"
+	const fName = "usecases.uscAuthentication.UserLoginSSO"
+	errWrap := errorWrapper.NewWrapper(fCode)
+	requestId := ctx.Value(defaultHeaders.XRequestId).(string)
+	logging := b.log.With("request_id", requestId, "request_body", request, "function_code", errWrap.FCode())
+	logging.Infow(fName, "reason", "execution started")
+	defer logging.Infow(fName, "reason", "execution ended")
+
+	// business logic process will be defined below this comment
+	/* [CODE GENERATOR] FUNC_BLUEPRINT_LGCS_UserLogin */
+	responseSSO, errSSO := b.extSSOLoginMSF.GetAccessToken(request.Code)
+	if errSSO != nil {
+		errMsg := fmt.Errorf("failed to contact single sign on provider")
+		logging.Errorw(fName, "reason", errSSO.Error())
+		return nil, errWrap.WrapExternalError(errMsg)
+	}
+
+	//responseSSO.Data
+
+	// verify user is already there or not
+	user, err := b.rprAuthentication.ReadRowUser(ctx, map[string]interface{}{
+		"email": "email from sso data",
+	})
+	if err != nil {
+		errMsg := fmt.Errorf("internal server error")
+		logging.Errorw(fName, "reason", err.Error())
+		return nil, errWrap.WrapRepositoryError(errMsg)
+	}
+	if user == nil {
+		errMsg := fmt.Errorf("data not found")
+		logging.Errorw(fName, "reason", errMsg.Error())
+		return nil, errWrap.WrapRepositoryError(errMsg)
+	}
+
+	// parsing access token expired duration
+	accessTokenExpiredDuration, err := time.ParseDuration(b.env.JWTAccessTokenDuration)
+	if err != nil {
+		errMsg := fmt.Errorf("mismatch configuration")
+		logging.Errorw(fName, "reason", err.Error())
+		return nil, errWrap.WrapBusinessError(errMsg)
+	}
+
+	// parsing refresh token expired duration
+	refreshTokenExpiredDuration, err := time.ParseDuration(b.env.JWTRefreshTokenDuration)
+	if err != nil {
+		errMsg := fmt.Errorf("mismatch configuration")
+		logging.Errorw(fName, "reason", err.Error())
+		return nil, errWrap.WrapBusinessError(errMsg)
+	}
+
+	// generate jwt access token
+	refreshToken, err := hashing.GenerateJWT(
+		strconv.Itoa(user.RoleId),
+		user.Email,
+		user.Id,
+		b.env.JWTSecret,
+		refreshTokenExpiredDuration,
+	)
+	if err != nil {
+		errMsg := fmt.Errorf("mismatch configuration")
+		logging.Errorw(fName, "reason", err.Error())
+		return nil, errWrap.WrapBusinessError(errMsg)
+	}
+
+	// generate jwt access token
+	accessToken, err := hashing.GenerateJWT(
+		strconv.Itoa(user.RoleId),
+		user.Email,
+		user.Id,
+		b.env.JWTSecret,
+		accessTokenExpiredDuration,
+	)
+	if err != nil {
+		errMsg := fmt.Errorf("mismatch configuration")
+		logging.Errorw(fName, "reason", err.Error())
+		return nil, errWrap.WrapBusinessError(errMsg)
+	}
+
+	// response
+	response := new(ResponseLoginRegisterSSO)
+	response.ResponseCode = basicObject.SuccessfullyCode
+	response.ResponseMessage = basicObject.Successfully
+	response.RefreshToken = refreshToken
+	response.AccessToken = accessToken
+	response.User.Id = user.Id
+	response.User.Email = user.Email
+	response.User.RoleId = strconv.Itoa(user.RoleId)
+	response.User.AvatarUrl = user.AvatarUrl
+	response.User.FullName = user.FullName
+	response.User.Gender = user.Gender
+	response.User.CreatedAt = user.CreatedAt
+	response.User.UpdatedAt = user.UpdatedAt
 	return response, nil
 }

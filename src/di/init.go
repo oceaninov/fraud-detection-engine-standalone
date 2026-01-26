@@ -2,6 +2,7 @@ package di
 
 /* [CODE GENERATOR] IMPORT_PKG_RPR */
 import (
+	"gitlab.com/fds22/detection-sys/src/externals/extSSOLoginMSF"
 	"gitlab.com/fds22/detection-sys/src/repositories/rprAuthentication"
 	"gitlab.com/fds22/detection-sys/src/repositories/rprBlacklistDTTOT"
 	"gitlab.com/fds22/detection-sys/src/repositories/rprBlacklistHistory"
@@ -53,6 +54,7 @@ func init() {
 
 	// Outsiders
 	/* [CODE GENERATOR] PROVIDE_OUTSIDERS */
+	err = Container.Provide(extSSOLoginMSF.NewProxyAdapterClient)
 
 	// Repositories
 	/* [CODE GENERATOR] PROVIDE_REPOSITORIES */
