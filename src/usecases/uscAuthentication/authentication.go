@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	goJwt "github.com/golang-jwt/jwt/v4"
+
 	guuid "github.com/google/uuid"
 	"github.com/hashicorp/go-uuid"
 	"gitlab.com/fds22/detection-sys/pkg/basicObject"
@@ -698,11 +700,21 @@ func (b *blueprint) UserLoginSSO(ctx context.Context, request *RequestLoginRegis
 		return nil, errWrap.WrapExternalError(errMsg)
 	}
 
-	//responseSSO.Data
+	// extracting email data from sso access token
+	accessTokenSSO := responseSSO.Data.AccessToken
+	parser := goJwt.NewParser(goJwt.WithoutClaimsValidation())
+	claims := goJwt.MapClaims{}
+	_, _, err := parser.ParseUnverified(accessTokenSSO, claims)
+	email, ok := claims["unique_name"].(string)
+	if !ok {
+		errMsg := fmt.Errorf("email claim not found in access token from SSO")
+		logging.Errorw(fName, "reason", errMsg.Error())
+		return nil, errWrap.WrapRepositoryError(errMsg)
+	}
 
 	// verify user is already there or not
 	user, err := b.rprAuthentication.ReadRowUser(ctx, map[string]interface{}{
-		"email": "email from sso data",
+		"email": email,
 	})
 	if err != nil {
 		errMsg := fmt.Errorf("internal server error")
