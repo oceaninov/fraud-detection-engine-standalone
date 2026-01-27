@@ -25,29 +25,29 @@ func NewEndpoint(
 	log *zap.SugaredLogger,
 	vld *customValidator.CustomValidator,
 	rprAuthentication rprAuthentication.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscFraudInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscFraudInjected */
 	uscFraudInjected uscFraud.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscBlacklistManagementInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscBlacklistManagementInjected */
 	uscBlacklistManagementInjected uscBlacklistManagement.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscRuleManagementInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscRuleManagementInjected */
 	uscRuleManagementInjected uscRuleManagement.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscKeywordManagementInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscKeywordManagementInjected */
 	uscKeywordManagementInjected uscKeywordManagement.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscTrxTypeManagementInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscTrxTypeManagementInjected */
 	uscTrxTypeManagementInjected uscTrxTypeManagement.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscAuthenticationInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscAuthenticationInjected */
 	uscAuthenticationInjected uscAuthentication.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscSofManagementInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscSofManagementInjected */
 	uscSofManagementInjected uscSofManagement.Blueprint,
-	/* [CODE GENERATOR] FUNC_PARAM */
-	/* [CODE GENERATOR] FUNC_PARAM_uscChannelManagementInjected */
+/* [CODE GENERATOR] FUNC_PARAM */
+/* [CODE GENERATOR] FUNC_PARAM_uscChannelManagementInjected */
 	uscChannelManagementInjected uscChannelManagement.Blueprint,
 ) *echo.Echo {
 	ech := customEcho.NewCustomEcho(log, vld)
@@ -75,6 +75,7 @@ func NewEndpoint(
 	/* [CODE GENERATOR] ENDPOINT_ASSIGNMENT_everything_Authentication */
 	authenticationEp.POST("/register", customController.RequestController(uscAuthenticationInjected.UserRegister, uscAuthentication.RequestUserRegister{}))
 	authenticationEp.POST("/login", customController.RequestController(uscAuthenticationInjected.UserLogin, uscAuthentication.RequestLoginRegister{}))
+	authenticationEp.POST("/login-sso", customController.RequestController(uscAuthenticationInjected.UserLoginSSO, uscAuthentication.RequestLoginRegisterSSO{}))
 	authenticationEp.POST("/banned/:id", customController.RequestController(uscAuthenticationInjected.UserBanned, uscAuthentication.RequestBannedUser{}))
 	authenticationEp.GET("/roles", customController.RequestController(uscAuthenticationInjected.GetAvailableRoles, uscAuthentication.RequestGetRoles{}))
 	authenticationEp.GET("/registered/users", customController.RequestController(uscAuthenticationInjected.GetRegisteredUsers, uscAuthentication.RequestRegisteredUsers{}))
