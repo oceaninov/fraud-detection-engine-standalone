@@ -8,10 +8,11 @@ import (
 )
 
 type ApplicationEnvs struct {
-	ApplicationName    string `envconfig:"APPLICATION_NAME"`
-	ApplicationVersion string `envconfig:"APPLICATION_VERSION"`
-	ApplicationPort    string `envconfig:"APPLICATION_PORT"`
-	ApplicationBO      string `envconfig:"APPLICATION_BO"`
+	ApplicationName                string `envconfig:"APPLICATION_NAME"`
+	ApplicationVersion             string `envconfig:"APPLICATION_VERSION"`
+	ApplicationPort                string `envconfig:"APPLICATION_PORT"`
+	ApplicationBO                  string `envconfig:"APPLICATION_BO"`
+	ApplicationAzureSSORedirectUri string `envconfig:"APPLICATION_AZURE_SSO_REDIRECT_URI"`
 }
 
 type LoggingEnvs struct {
