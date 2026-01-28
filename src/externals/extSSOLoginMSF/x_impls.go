@@ -13,7 +13,8 @@ import (
 
 type (
 	GetAccessTokenRequest struct {
-		Code string `json:"code"`
+		Code        string `json:"code"`
+		RedirectUri string `json:"redirect_uri"`
 	}
 	GetAccessTokenResponse struct {
 		ProcessTime string             `json:"process_time"`
@@ -58,7 +59,8 @@ func (a *proxyAdapterClient) GetAccessToken(code string) (resp GetAccessTokenRes
 		SetHeader("Content-Type", "application/json").
 		SetResult(&resp).
 		SetBody(GetAccessTokenRequest{
-			Code: code,
+			Code:        code,
+			RedirectUri: a.env.ApplicationAzureSSORedirectUri,
 		}).
 		Post(fmt.Sprintf("%s/azure-ad/auth", a.env.ProxyAdapterHost))
 
