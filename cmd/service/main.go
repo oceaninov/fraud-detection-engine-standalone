@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"syscall"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"gitlab.com/fds22/detection-sys/pkg/environments"
 	"gitlab.com/fds22/detection-sys/pkg/graceful"
 	"gitlab.com/fds22/detection-sys/src/di"
 	"go.uber.org/zap"
-	"os"
-	"syscall"
-	"time"
 )
 
 func main() {
@@ -21,6 +22,9 @@ func main() {
 	) {
 		const fName = "entry.main.MainFunction"
 		log.Infow(fName, "reason", "execution started")
+
+		log.Infow(fName, "reason", "Base url proxy sso", "url", envs.ProxyAdapterHost)
+		log.Infow(fName, "reason", "Redirection uri proxy sso", "uri", envs.ApplicationAzureSSORedirectUri)
 
 		// starting service
 		ctx := context.Background()
