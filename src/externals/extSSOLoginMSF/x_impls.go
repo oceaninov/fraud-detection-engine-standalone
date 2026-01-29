@@ -42,6 +42,7 @@ type IProxyAdapterClient interface {
 type proxyAdapterClient struct {
 	env    *environments.Envs
 	client *resty.Client
+	debug  bool
 }
 
 func NewProxyAdapterClient(env *environments.Envs) IProxyAdapterClient {
@@ -50,19 +51,18 @@ func NewProxyAdapterClient(env *environments.Envs) IProxyAdapterClient {
 		SetRetryCount(3).
 		SetRetryWaitTime(5 * time.Second).
 		SetRetryMaxWaitTime(20 * time.Second)
-
-	return &proxyAdapterClient{env: env, client: client}
+	p := &proxyAdapterClient{env: env, client: client}
+	level := env.LogLevel
+	if level == "DEBUG" {
+		p.debug = true
+	} else {
+		p.debug = false
+	}
+	return p
 }
 
 func (a *proxyAdapterClient) GetAccessToken(code string) (resp GetAccessTokenResponse, err error) {
-	level := a.env.LogLevel
-	var debug bool
-	if level == "DEBUG" {
-		debug = true
-	} else {
-		debug = false
-	}
-	response, err := a.client.R().SetDebug(debug).
+	response, err := a.client.R().SetDebug(a.debug).
 		SetHeader("Content-Type", "application/json").
 		SetResult(&resp).
 		SetBody(GetAccessTokenRequest{
