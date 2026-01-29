@@ -55,7 +55,7 @@ func NewProxyAdapterClient(env *environments.Envs) IProxyAdapterClient {
 }
 
 func (a *proxyAdapterClient) GetAccessToken(code string) (resp GetAccessTokenResponse, err error) {
-	response, err := a.client.R().
+	response, err := a.client.R().SetDebug(true).
 		SetHeader("Content-Type", "application/json").
 		SetResult(&resp).
 		SetBody(GetAccessTokenRequest{
