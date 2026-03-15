@@ -18,6 +18,7 @@ type (
 	// Blueprint repository function interface design
 	Blueprint interface {
 		/* [CODE GENERATOR] FUNC_BLUEPRINT_CNTR */
+		InitTx(ctx context.Context) (BlueprintTx, error)
 		ReadRowsBlacklistDTTOT(ctx context.Context, findBy map[string]interface{}) (*[]EntityBlacklistDTTOT, error)
 		ReadRowsBlacklistMerchant(ctx context.Context, findBy map[string]interface{}) (*[]EntityBlacklistMerchant, error)
 		ReadRowsBlacklistSender(ctx context.Context, findBy map[string]interface{}) (*[]EntityBlacklistSender, error)
@@ -40,11 +41,25 @@ type (
 
 		UpdateRowTransaction(ctx context.Context, entity EntityTransaction) (*EntityTransaction, *string, error)
 	}
+	BlueprintTx interface {
+		/* [CODE GENERATOR] FUNC_BLUEPRINT_TX_CNTR */
+		Finish() (err error)
+		Abort() (err error)
+		WriteRowLog(ctx context.Context, entity EntityLog) (*EntityLog, *string, error)
+		WriteRowBlacklistSender(ctx context.Context, entity EntityBlacklistSender) (*EntityBlacklistSender, *string, error)
+		WriteRowBlacklistHistory(ctx context.Context, entity EntityBlacklistHistory) (*EntityBlacklistHistory, *string, error)
+		WriteRowTransaction(ctx context.Context, entity EntityTransaction) (*EntityTransaction, *string, error)
+	}
 	// blueprint constructor parameters
 	blueprint struct {
 		/* [CODE GENERATOR] ATTR_CREATION */
 		log *zap.SugaredLogger // log logging instance
 		orm *gorm.DB           // orm database gorm orm instance
+	}
+	blueprintTx struct {
+		/* [CODE GENERATOR] ATTR_TX_CREATION */
+		log *zap.SugaredLogger
+		tx  *gorm.DB
 	}
 )
 
@@ -66,6 +81,39 @@ func NewBlueprint(
 }
 
 /* [CODE GENERATOR] FUNC_BLUEPRINT_IMPL */
+
+func (b *blueprint) InitTx(ctx context.Context) (BlueprintTx, error) {
+	db := b.orm.WithContext(ctx).Begin()
+	err := db.Error
+	if err != nil {
+		b.log.Errorf("error begin tx: %s", err)
+		return nil, err
+	}
+
+	return &blueprintTx{
+		log: b.log,
+		tx:  db,
+	}, nil
+}
+
+func (t *blueprintTx) Finish() (err error) {
+	err = t.tx.Commit().Error
+	if err != nil {
+		t.log.Errorf("error commiting tx: %s", err)
+		return
+	}
+
+	return
+}
+func (t *blueprintTx) Abort() (err error) {
+	err = t.tx.Rollback().Error
+	if err != nil {
+		t.log.Errorf("error rollback tx: %s", err)
+		return
+	}
+
+	return
+}
 
 func (b *blueprint) ReadRowsBlacklistDTTOT(ctx context.Context, findBy map[string]interface{}) (*[]EntityBlacklistDTTOT, error) {
 	// constructing standard module name with request id as its prefix
@@ -416,22 +464,24 @@ func (b *blueprint) ReadRowsBlacklistMerchantByPerformerNameAndUserId(ctx contex
 }
 
 func (b *blueprint) WriteRowLog(ctx context.Context, entity EntityLog) (*EntityLog, *string, error) {
+	return writeRowLog(b.orm, ctx, b.log, entity)
+}
+
+func (t *blueprintTx) WriteRowLog(ctx context.Context, entity EntityLog) (*EntityLog, *string, error) {
+	return writeRowLog(t.tx, ctx, t.log, entity)
+}
+
+func writeRowLog(db *gorm.DB, ctx context.Context, logger *zap.SugaredLogger, entity EntityLog) (*EntityLog, *string, error) {
 	// constructing standard module name with request id as its prefix
 	const fName = "repositories.rprFraudDetection.WriteRowLog"
 	requestId := ctx.Value(defaultHeaders.XRequestId).(string)
-	logging := b.log.With("request_id", requestId)
+	logging := logger.With("request_id", requestId)
 	logging.Infow(fName, "reason", "execution started")
 	defer logging.Infow(fName, "reason", "execution ended")
 
-	/* [CODE GENERATOR] FUNC_BLUEPRINT_LGCS_WriteRowLog */
 	model := new(EntityLog)
-	if err := b.orm.Table(model.TableName()).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&entity).Error; err != nil {
-			_ = tx.Rollback()
-			return err
-		}
-		return nil
-	}); err != nil {
+	err := db.Table(model.TableName()).Create(&entity).Error
+	if err != nil {
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, nil, err
 	}
@@ -441,46 +491,49 @@ func (b *blueprint) WriteRowLog(ctx context.Context, entity EntityLog) (*EntityL
 }
 
 func (b *blueprint) WriteRowTransaction(ctx context.Context, entity EntityTransaction) (*EntityTransaction, *string, error) {
-	// constructing standard module name with request id as its prefix
-	const fName = "repositories.rprFraudDetection.WriteRowTransaction"
+	return writeRowTransaction(b.orm, ctx, b.log, entity)
+}
+
+func (t *blueprintTx) WriteRowTransaction(ctx context.Context, entity EntityTransaction) (*EntityTransaction, *string, error) {
+	return writeRowTransaction(t.tx, ctx, t.log, entity)
+}
+
+func writeRowTransaction(db *gorm.DB, ctx context.Context, logger *zap.SugaredLogger, entity EntityTransaction) (*EntityTransaction, *string, error) {
+	const fName = "repositories.rprFraudDetection.writeRowTransaction"
 	requestId := ctx.Value(defaultHeaders.XRequestId).(string)
-	logging := b.log.With("request_id", requestId)
+	logging := logger.With("request_id", requestId)
 	logging.Infow(fName, "reason", "execution started")
 	defer logging.Infow(fName, "reason", "execution ended")
 
-	/* [CODE GENERATOR] FUNC_BLUEPRINT_LGCS_WriteRowTransaction */
 	model := new(EntityTransaction)
-	if err := b.orm.Table(model.TableName()).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&entity).Error; err != nil {
-			_ = tx.Rollback()
-			return err
-		}
-		return nil
-	}); err != nil {
+	err := db.Table(model.TableName()).Create(&entity).Error
+	if err != nil {
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, nil, err
 	}
 
-	// returning result
 	return &entity, &entity.Id, nil
 }
 
 func (b *blueprint) WriteRowBlacklistHistory(ctx context.Context, entity EntityBlacklistHistory) (*EntityBlacklistHistory, *string, error) {
+	return writeRowBlacklistHistory(b.orm, ctx, b.log, entity)
+}
+
+func (t *blueprintTx) WriteRowBlacklistHistory(ctx context.Context, entity EntityBlacklistHistory) (*EntityBlacklistHistory, *string, error) {
+	return writeRowBlacklistHistory(t.tx, ctx, t.log, entity)
+}
+
+func writeRowBlacklistHistory(db *gorm.DB, ctx context.Context, logger *zap.SugaredLogger, entity EntityBlacklistHistory) (*EntityBlacklistHistory, *string, error) {
 	const fName = "repositories.rprFraudDetection.WriteRowBlacklistHistory"
 	requestId := ctx.Value(defaultHeaders.XRequestId).(string)
-	logging := b.log.With("request_id", requestId)
+	logging := logger.With("request_id", requestId)
 	logging.Infow(fName, "reason", "execution started")
 	defer logging.Infow(fName, "reason", "execution ended")
 
 	model := new(EntityBlacklistHistory)
 	// Create new record only if not exists
-	if err := b.orm.Table(model.TableName()).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&entity).Error; err != nil {
-			_ = tx.Rollback()
-			return err
-		}
-		return nil
-	}); err != nil {
+	err := db.Table(model.TableName()).Create(&entity).Error
+	if err != nil {
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, nil, err
 	}
@@ -489,17 +542,25 @@ func (b *blueprint) WriteRowBlacklistHistory(ctx context.Context, entity EntityB
 }
 
 func (b *blueprint) WriteRowBlacklistSender(ctx context.Context, entity EntityBlacklistSender) (*EntityBlacklistSender, *string, error) {
+	return writeRowBlacklistSender(b.orm, ctx, b.log, entity)
+}
+
+func (t *blueprintTx) WriteRowBlacklistSender(ctx context.Context, entity EntityBlacklistSender) (*EntityBlacklistSender, *string, error) {
+	return writeRowBlacklistSender(t.tx, ctx, t.log, entity)
+}
+
+func writeRowBlacklistSender(db *gorm.DB, ctx context.Context, logger *zap.SugaredLogger, entity EntityBlacklistSender) (*EntityBlacklistSender, *string, error) {
 	// constructing standard module name with request id as its prefix
 	const fName = "repositories.rprFraudDetection.WriteRowBlacklistSender"
 	requestId := ctx.Value(defaultHeaders.XRequestId).(string)
-	logging := b.log.With("request_id", requestId)
+	logging := logger.With("request_id", requestId)
 	logging.Infow(fName, "reason", "execution started")
 	defer logging.Infow(fName, "reason", "execution ended")
 
 	/* [CODE GENERATOR] FUNC_BLUEPRINT_LGCS_WriteRowBlacklistSender */
 	// Check if the record already exists (you can change the condition based on your logic)
 	var existing EntityBlacklistSender
-	err := b.orm.Table(existing.TableName()).
+	err := db.Table(existing.TableName()).
 		Where("phone_number = ? AND beneficiary_name = ?",
 			entity.PhoneNumber, entity.BeneficiaryName).
 		First(&existing).Error
@@ -513,13 +574,8 @@ func (b *blueprint) WriteRowBlacklistSender(ctx context.Context, entity EntityBl
 	}
 
 	model := new(EntityBlacklistSender)
-	if err := b.orm.Table(model.TableName()).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&entity).Error; err != nil {
-			_ = tx.Rollback()
-			return err
-		}
-		return nil
-	}); err != nil {
+	err = db.Table(model.TableName()).Create(&entity).Error
+	if err != nil {
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, nil, err
 	}

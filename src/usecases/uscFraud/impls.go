@@ -94,6 +94,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	response := new(ResponseDetect)
 	var rulesEntityEvaluation []rprFraudDetection.EntityRule
 	var evaluationData basicObject.EvaluationData
+	var errMsg error
 	const successResponseCode = "00"
 	const successResponseDescription = "Request successful"
 
@@ -104,7 +105,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 
 	parsedTime, err := time.Parse(time.DateTime, request.TransactionTime)
 	if err != nil {
-		errMsg := fmt.Errorf("invalid transaction time")
+		errMsg = fmt.Errorf("invalid transaction time")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapBusinessError(errMsg)
 	}
@@ -112,7 +113,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	// Convert amount to float
 	requestAmount, err := strconv.ParseFloat(request.Amount.Value, 64)
 	if err != nil {
-		errMsg := fmt.Errorf("invalid amount value")
+		errMsg = fmt.Errorf("invalid amount value")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -136,31 +137,12 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 
 	// Insert transaction history data
 	transactionId := guuid.NewString()
-	newInsertedTrxData, newTrxDataId, err := b.rprFraudDetection.WriteRowTransaction(
-		ctx, rprFraudDetection.EntityTransaction{
-			TransactionId:   partnerReferenceNo,
-			Rules:           "",
-			Title:           request.TransactionType,
-			FlagId:          basicObject.WarningFlagId,
-			CreatedAt:       now.Format(basicObject.DateAndTime),
-			Amount:          request.Amount.Value,
-			Id:              transactionId,
-			UserId:          request.BenefactorIdentityNumber,
-			DestinationId:   request.BeneficiaryIdentityNumber,
-			BodyReq:         "",
-			Channel:         request.Channel,
-			TransactionType: request.TransactionType,
-		},
-	)
-	if err != nil {
-		errMsg := fmt.Errorf("internal server error")
-		logging.Errorw(fName, "reason", err.Error())
-		return nil, errWrap.WrapRepositoryError(errMsg)
-	}
-	if newInsertedTrxData == nil && newTrxDataId == nil {
-		errMsg := fmt.Errorf("internal server error")
-		logging.Errorw(fName, "reason", "failed to new insert trx data")
-		return nil, errWrap.WrapRepositoryError(errMsg)
+	var bodyReq string
+	bodyReqBytes, errMarshalBodyReq := json.Marshal(*request)
+	if errMarshalBodyReq != nil {
+		logging.Warnw(fName, "reason", errMarshalBodyReq.Error())
+	} else {
+		bodyReq = string(bodyReqBytes)
 	}
 
 	// Retrieve Blacklist DTTOT
@@ -168,7 +150,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	benefactorResult, err := b.rprFraudDetection.ReadRowsBlacklistDTTOTByPerformerName(ctx,
 		strings.ToUpper(request.BenefactorName))
 	if err != nil && err.Error() != errors.New("not found").Error() {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -189,7 +171,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	beneficiaryResult, err := b.rprFraudDetection.ReadRowsBlacklistDTTOTByPerformerName(ctx,
 		strings.ToUpper(request.BeneficiaryName))
 	if err != nil && err.Error() != errors.New("not found").Error() {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -210,7 +192,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	receiverResult, err := b.rprFraudDetection.ReadRowsBlacklistReceiverByPerformerName(ctx,
 		strings.ToUpper(request.BeneficiaryName), request.BeneficiaryIdentityNumber, request.TransactionType)
 	if err != nil && err.Error() != errors.New("not found").Error() {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -227,7 +209,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	senderResult, err := b.rprFraudDetection.ReadRowsBlacklistSenderByPerformerName(ctx,
 		strings.ToUpper(request.BenefactorName), request.BenefactorIdentityNumber, request.TransactionType)
 	if err != nil && err.Error() != errors.New("not found").Error() {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -244,7 +226,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	merchantResult, err := b.rprFraudDetection.ReadRowsBlacklistMerchantByPerformerNameAndUserId(ctx,
 		strings.ToUpper(request.BeneficiaryName), request.BeneficiaryIdentityNumber)
 	if err != nil && err.Error() != errors.New("not found").Error() {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -268,7 +250,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 		"sofs": request.Sof,
 	})
 	if err != nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -359,7 +341,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 			logging.Errorw(fName, "rule_time_setting", "none")
 			ruleTimeValidity = true
 		default:
-			errMsg := fmt.Errorf("invalid rule time range setting")
+			errMsg = fmt.Errorf("invalid rule time range setting")
 			logging.Errorw(fName, "reason", errMsg)
 			return nil, errWrap.WrapRepositoryError(errMsg)
 		}
@@ -371,21 +353,21 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 
 			err := json.Unmarshal([]byte(rule.TransactionType), &trxType)
 			if err != nil {
-				errMsg := fmt.Errorf("malformed transaction type")
+				errMsg = fmt.Errorf("malformed transaction type")
 				logging.Errorw(fName, "reason", err.Error())
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
 
 			err = json.Unmarshal([]byte(rule.Interval), &interval)
 			if err != nil {
-				errMsg := fmt.Errorf("malformed interval")
+				errMsg = fmt.Errorf("malformed interval")
 				logging.Errorw(fName, "reason", err.Error())
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
 
 			err = json.Unmarshal([]byte(rule.Actions), &action)
 			if err != nil {
-				errMsg := fmt.Errorf("malformed action")
+				errMsg = fmt.Errorf("malformed action")
 				logging.Errorw(fName, "reason", err.Error())
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
@@ -407,7 +389,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 				intervalDuration, errIntervalDurationParse = time.ParseDuration(durationString)
 			}
 			if errIntervalDurationParse != nil {
-				errMsg := fmt.Errorf("invalid interval data from datasouce")
+				errMsg = fmt.Errorf("invalid interval data from datasouce")
 				logging.Errorw(fName, "reason", errMsg)
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
@@ -422,7 +404,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 			transactions, err := b.rprFraudDetection.
 				ReadRowsTransactionsByPhoneAndDateRange(ctx, request.BenefactorIdentityNumber, startDate, endDate)
 			if err != nil {
-				errMsg := fmt.Errorf("transaction data not found")
+				errMsg = fmt.Errorf("transaction data not found")
 				logging.Errorw(fName, "reason", errMsg.Error())
 				return nil, errWrap.WrapRepositoryError(err)
 			}
@@ -438,7 +420,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 					lastTransactionTime, err := time.ParseInLocation(basicObject.DatabaseDateAndTime,
 						latestTransaction.CreatedAt, time.Local)
 					if err != nil {
-						errMsg := fmt.Errorf("failed to parse")
+						errMsg = fmt.Errorf("failed to parse")
 						logging.Errorw(fName, "reason", err.Error())
 						return nil, errWrap.WrapRepositoryError(errMsg)
 					}
@@ -539,7 +521,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 	// Keyword retrieval
 	keywords, err := b.rprFraudDetection.ReadRowsKeyword(ctx)
 	if err != nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -587,33 +569,55 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 					}
 				}
 			default:
-				errMsg := fmt.Errorf("invalid keyword rule data from datasouce")
+				errMsg = fmt.Errorf("invalid keyword rule data from datasouce")
 				logging.Errorw(fName, "reason", errMsg.Error())
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
 		}
 	}
 
+	// init DB transaction
+	tx, err := b.rprFraudDetection.InitTx(ctx)
+	if err != nil {
+		errMsg = fmt.Errorf("internal server error")
+		logging.Errorw(fName, "reason", err.Error())
+		return nil, errWrap.WrapRepositoryError(errMsg)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			if rollbackErr := tx.Abort(); rollbackErr != nil {
+				logging.Errorf("error rollback tx: %s", rollbackErr)
+			}
+		}
+		if errMsg != nil {
+			if rollbackErr := tx.Abort(); rollbackErr != nil {
+				logging.Errorf("error rollback tx: %s", rollbackErr)
+			}
+		}
+		if commitErr := tx.Finish(); commitErr != nil {
+			logging.Errorf("error commit tx: %s", commitErr)
+		}
+	}()
+
 	// Inserting log data
-	additionalInfoBytes, _ := json.Marshal(request.AdditionalInfo)
-	insertedLogData, logDataId, err := b.rprFraudDetection.WriteRowLog(ctx, rprFraudDetection.EntityLog{
+	insertedLogData, logDataId, err := tx.WriteRowLog(ctx, rprFraudDetection.EntityLog{
 		Id:              guuid.NewString(),
 		UserId:          request.BenefactorIdentityNumber,
 		DestinationId:   request.BeneficiaryIdentityNumber,
 		Amount:          requestAmount,
 		StartDate:       now.Format(basicObject.DateAndTime),
 		EndDate:         time.Now().Format(basicObject.DateAndTime),
-		BodyReq:         string(additionalInfoBytes),
+		BodyReq:         bodyReq,
 		Channel:         request.Channel,
 		TransactionType: request.TransactionType,
 	})
 	if err != nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
 	if insertedLogData == nil && logDataId == nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", "failed to insert log data")
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -656,12 +660,12 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 
 	transactionTypesData, err := b.rprTransactionType.ReadRowsTransactionTypeApproved(ctx, map[string]interface{}{}, 0, 0, true)
 	if err != nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", errMsg.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
 	if transactionTypesData == nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", "failed to read transaction types data")
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
@@ -676,7 +680,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 			response.ResponseObject.Conclusion = basicObject.Rejected
 			transactionSevereLevelCategory = basicObject.RejectedFlagId
 			if senderResult != nil && len(*senderResult) == 0 {
-				insertedSenderData, trxDataId, err := b.rprFraudDetection.WriteRowBlacklistSender(
+				insertedSenderData, trxDataId, err := tx.WriteRowBlacklistSender(
 					ctx, rprFraudDetection.EntityBlacklistSender{
 						Id:               guuid.NewString(),
 						PhoneNumber:      request.BenefactorIdentityNumber,
@@ -690,12 +694,12 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 					},
 				)
 				if err != nil {
-					errMsg := fmt.Errorf("internal server error")
+					errMsg = fmt.Errorf("internal server error")
 					logging.Errorw(fName, "reason", err.Error())
 					return nil, errWrap.WrapRepositoryError(errMsg)
 				}
 				if insertedSenderData == nil && trxDataId == nil {
-					errMsg := fmt.Errorf("internal server error")
+					errMsg = fmt.Errorf("internal server error")
 					logging.Errorw(fName, "reason", "failed to insert new blacklist sender data")
 					return nil, errWrap.WrapRepositoryError(errMsg)
 				}
@@ -708,7 +712,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 			} else {
 				response.ResponseObject.Conclusion = basicObject.Rejected
 				transactionSevereLevelCategory = basicObject.RejectedFlagId
-				insertedSenderData, trxDataId, err := b.rprFraudDetection.WriteRowBlacklistSender(
+				insertedSenderData, trxDataId, err := tx.WriteRowBlacklistSender(
 					ctx, rprFraudDetection.EntityBlacklistSender{
 						Id:               guuid.NewString(),
 						PhoneNumber:      request.BenefactorIdentityNumber,
@@ -722,19 +726,19 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 					},
 				)
 				if err != nil {
-					errMsg := fmt.Errorf("internal server error")
+					errMsg = fmt.Errorf("internal server error")
 					logging.Errorw(fName, "reason", err.Error())
 					return nil, errWrap.WrapRepositoryError(errMsg)
 				}
 				if insertedSenderData == nil && trxDataId == nil {
-					errMsg := fmt.Errorf("internal server error")
+					errMsg = fmt.Errorf("internal server error")
 					logging.Errorw(fName, "reason", "failed to insert new blacklist sender data")
 					return nil, errWrap.WrapRepositoryError(errMsg)
 				}
 			}
 			response.ResponseObject.Reported = basicObject.WithReport
 			//if senderResult != nil && len(*senderResult) == 0 {
-			//	insertedSenderData, trxDataId, err := b.rprFraudDetection.WriteRowBlacklistSender(
+			//	insertedSenderData, trxDataId, err := tx.WriteRowBlacklistSender(
 			//		ctx, rprFraudDetection.EntityBlacklistSender{
 			//			Id:               guuid.NewString(),
 			//			PhoneNumber:      request.BenefactorIdentityNumber,
@@ -748,12 +752,12 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 			//		},
 			//	)
 			//	if err != nil {
-			//		errMsg := fmt.Errorf("internal server error")
+			//		errMsg = fmt.Errorf("internal server error")
 			//		logging.Errorw(fName, "reason", err.Error())
 			//		return nil, errWrap.WrapRepositoryError(errMsg)
 			//	}
 			//	if insertedSenderData == nil && trxDataId == nil {
-			//		errMsg := fmt.Errorf("internal server error")
+			//		errMsg = fmt.Errorf("internal server error")
 			//		logging.Errorw(fName, "reason", "failed to insert new blacklist sender data")
 			//		return nil, errWrap.WrapRepositoryError(errMsg)
 			//	}
@@ -769,7 +773,7 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 			transactionSevereLevelCategory = basicObject.WarningFlagId
 		}
 		if senderResult != nil && len(*senderResult) == 0 {
-			insertedReportData, trxDataId, err := b.rprFraudDetection.WriteRowBlacklistHistory(
+			insertedReportData, trxDataId, err := tx.WriteRowBlacklistHistory(
 				ctx, rprFraudDetection.EntityBlacklistHistory{
 					Id:               guuid.NewString(),
 					CreatedAt:        now.Format(basicObject.DateAndTime),
@@ -781,12 +785,12 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 				},
 			)
 			if err != nil {
-				errMsg := fmt.Errorf("internal server error")
+				errMsg = fmt.Errorf("internal server error")
 				logging.Errorw(fName, "reason", err.Error())
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
 			if insertedReportData == nil && trxDataId == nil {
-				errMsg := fmt.Errorf("internal server error")
+				errMsg = fmt.Errorf("internal server error")
 				logging.Errorw(fName, "reason", "failed to insert report data")
 				return nil, errWrap.WrapRepositoryError(errMsg)
 			}
@@ -804,32 +808,32 @@ func (b *blueprint) Detect(ctx context.Context, request *RequestDetect) (*Respon
 		}
 	}
 
-	// Update transaction history data
+	// insert transaction
 	ruleBytes, _ := json.Marshal(rulesEntityEvaluation)
-	insertedTrxData, trxDataId, err := b.rprFraudDetection.UpdateRowTransaction(
+	newInsertedTrxData, newTrxDataId, err := tx.WriteRowTransaction(
 		ctx, rprFraudDetection.EntityTransaction{
+			Id:              transactionId,
 			TransactionId:   partnerReferenceNo,
 			Rules:           string(ruleBytes),
 			Title:           request.TransactionType,
+			Channel:         request.Channel,
+			BodyReq:         bodyReq,
 			FlagId:          transactionSevereLevelCategory,
 			CreatedAt:       now.Format(basicObject.DateAndTime),
-			Amount:          strconv.FormatFloat(requestAmount, 'f', 2, 64),
-			Id:              transactionId,
 			UserId:          request.BenefactorIdentityNumber,
+			Amount:          strconv.FormatFloat(requestAmount, 'f', 2, 64),
 			DestinationId:   request.BeneficiaryIdentityNumber,
-			BodyReq:         string(additionalInfoBytes),
-			Channel:         request.Channel,
 			TransactionType: request.TransactionType,
 		},
 	)
 	if err != nil {
-		errMsg := fmt.Errorf("internal server error")
+		errMsg = fmt.Errorf("internal server error")
 		logging.Errorw(fName, "reason", err.Error())
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
-	if insertedTrxData == nil && trxDataId == nil {
-		errMsg := fmt.Errorf("internal server error")
-		logging.Errorw(fName, "reason", "failed to insert trx data")
+	if newInsertedTrxData == nil && newTrxDataId == nil {
+		errMsg = fmt.Errorf("internal server error")
+		logging.Errorw(fName, "reason", "failed to new insert trx data")
 		return nil, errWrap.WrapRepositoryError(errMsg)
 	}
 
