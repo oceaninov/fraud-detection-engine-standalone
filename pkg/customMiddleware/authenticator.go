@@ -3,15 +3,16 @@ package customMiddleware
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/labstack/echo/v4"
 	"gitlab.com/fds22/detection-sys/pkg/basicObject"
 	"gitlab.com/fds22/detection-sys/pkg/defaultHeaders"
 	"gitlab.com/fds22/detection-sys/pkg/environments"
 	"gitlab.com/fds22/detection-sys/pkg/hashing"
 	"gitlab.com/fds22/detection-sys/src/repositories/rprAuthentication"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 func AuthBasic(envs *environments.Envs) echo.MiddlewareFunc {
